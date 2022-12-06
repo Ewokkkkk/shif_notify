@@ -1,5 +1,5 @@
 function sendMessage() {
-  const postUrl = 'https://hooks.slack.com/services/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';
+  const postUrl = '';
   const sendMessage = createMessage();
   const jsonData = {
     "text": sendMessage
