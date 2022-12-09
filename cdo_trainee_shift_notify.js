@@ -1,7 +1,25 @@
+// 翌日に実行するトリガを設定する処理
+function setTrigger() {
+  var time = new Date();
+  var this_year = time.getFullYear();
+  var day = time.getDay(); // 今日の曜日
+
+  time.setDate(time.getDate() + 1);
+  time.setHours(9); //時
+  time.setMinutes(0); //分
+  time.setSeconds(0); //秒
+
+  // 次の日が年を越してればトリガを設定しない
+  if (this_year == time.getFullYear()) {
+    ScriptApp.newTrigger('sendMessage').timeBased().at(time).create();
+  }
+}
+
 function sendMessage() {
+  setTrigger();
+  // slack appのWebhook URL
   const postUrl = '';
   const sendMessage = createMessage();
-  console.log(sendMessage);
   const jsonData = {
     "text": sendMessage
   };
@@ -16,8 +34,8 @@ function sendMessage() {
 
 function createMessage() {
   // 今日の日付取得
-  const today = new Date('December 16, 2022 03:24:00');
-  // const today = new Date();
+  const today = new Date();
+  // const today = new Date('December 9, 2023 03:24:00');
   // 比較用に時間は削除
   today.setHours(0);
   today.setMinutes(0);
@@ -27,9 +45,25 @@ function createMessage() {
   // ex:人材開発室勤務表_202212
   const fileName = "人材開発室勤務表_" + today.getFullYear() + (today.getMonth() + 1);
 
+  var target = DriveApp.getFolderById(""); // 人材開発室勤務表のフォルダIDを指定
+  var folders = target.getFolders();
+
+  // 今年のフォルダのフォルダIDを取得
+  while (folders.hasNext()) {
+    var folder = folders.next();
+    var folderName = folder.getName();
+
+    if (folderName == today.getFullYear()) {
+      var this_folder = folder.getId();
+    }
+  }
+
   // 勤務表があるフォルダーID・ファイル名からファイルを取得
-  var files = DriveApp.getFolderById('1kj10N7wgcj8Zk8k2hYaz83ft8N_BMcJo').getFilesByName(fileName);
+  var files = DriveApp.getFolderById(this_folder).getFilesByName(fileName);
   var file = files.next();
+
+  // 開いているファイルのURL
+  var fileURL = file.getUrl();
 
   const spreadsheet = SpreadsheetApp.openById(file.getId());
   const sheet = spreadsheet.getSheetByName("シフト");
@@ -44,17 +78,10 @@ function createMessage() {
   const day = day_arr[today.getDay()];
   const today_str = month + "月" + date + "日" + "(" + day + ")";
 
-  // 研修生の列の開始列
-  var trainee_column_start;
-
-  // 今日の日付の行用の配列
-  var todays_data = [];
-
-  // 名前の列用配列
-  var name_row = values[1];
-
-  // 出力用配列
-  var line = [today_str + " の研修生の出勤予定", ""];
+  var trainee_column_start;  // 研修生の列の開始列
+  var todays_data = [];  // 今日の日付の行用の配列
+  var name_row = values[1];  // 名前の列用配列
+  var line = [today_str + " の研修生の出勤予定", ""];  // 出力用配列
 
   // 研修生の列の開始位置を取得
   for (let i = 0; i < firstColumnVals[0].length; i++) {
@@ -89,7 +116,7 @@ function createMessage() {
     line.push("研修生の出勤予定はありません");
   }
 
-  line.push("勤務表のURL");
+  line.push(fileURL);
 
   var output = line.join('\n');
   return output;
